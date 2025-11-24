@@ -1,0 +1,47 @@
+name: Test CI
+on:
+  push:
+    paths:
+    - '**.ring'
+    - '**.dll'
+    - '**.so'
+    - '**.dylib'
+    - '.github/workflows/testCI.yml'
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, ubuntu-24.04-arm, macos-latest, macos-15-intel, windows-latest, windows-11-arm ]
+    runs-on: ${{ matrix.os }}
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Check for libraries in lib directory (Unix)
+      if: runner.os != 'Windows'
+      id: check-libs-unix
+      run: |
+        if [ -z "$(find lib -name '*.so' -o -name '*.dll' -o -name '*.dylib' 2>/dev/null)" ]; then
+          echo "has_libs=false" >> $GITHUB_OUTPUT
+        else
+          echo "has_libs=true" >> $GITHUB_OUTPUT
+        fi
+      shell: bash
+
+    - name: Check for libraries in lib directory (Windows)
+      if: runner.os == 'Windows'
+      id: check-libs-windows
+      run: |
+        $libs = Get-ChildItem -Path "lib" -Recurse -Include "*.so","*.dll","*.dylib" -ErrorAction SilentlyContinue
+        if ($libs.Count -eq 0) {
+          echo "has_libs=false" >> $env:GITHUB_OUTPUT
+        } else {
+          echo "has_libs=true" >> $env:GITHUB_OUTPUT
+        }
+      shell: powershell
+
+    - name: Run Ring UUID tests
+      if: (runner.os == 'Windows' && steps.check-libs-windows.outputs.has_libs == 'true') || (runner.os != 'Windows' && steps.check-libs-unix.outputs.has_libs == 'true')
+      uses: ysdragon/ring-action@v1.2.3
+      with:
+        file: "src/uuid_test.ring"

@@ -1,0 +1,3 @@
+[submodule "src/c_src/stduuid"]
+	path = src/c_src/stduuid
+	url = https://github.com/mariusbancila/stduuid
